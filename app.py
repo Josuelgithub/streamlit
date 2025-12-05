@@ -3,7 +3,8 @@ import streamlit as st
 import io
 import zipfile
 
-# --- Funções (mesmas do código anterior) ---
+
+# --- Funções ---
 PADROES_VALIDOS = ("1;", "2;", "3;", "4;")
 
 def starts_valid(line: str) -> bool:
@@ -52,11 +53,12 @@ def contar_linhas(conteudo: str):
     nao_vazias = sum(1 for l in linhas if l.strip() != "")
     return total, nao_vazias
 
+
 # -------------------------
 # App Streamlit
 # -------------------------
-st.set_page_config(page_title="Corretor de Linhas Quebradas (TXT)", layout="wide")
-st.title("📄 Corretor de Linhas Quebradas — TXT (padrão: 1;,2;,3;,4;)")
+st.set_page_config(page_title="👌Corretor de Linhas Quebradas (TXT)", layout="wide")
+st.title("📄 Corretor de Linhas Quebradas SGE > SI — TXT (padrão: 1;,2;,3;,4;)")
 
 st.write("Envie um ou mais arquivos .txt. O app mostrará um resumo das linhas quebradas antes da correção e permitirá baixar todos os arquivos corrigidos em um ZIP.")
 
@@ -71,26 +73,32 @@ if not uploaded_files:
     st.stop()
 
 if st.button("🛠️ Corrigir todos os arquivos e gerar ZIP"):
+
     # Criar buffer do ZIP em memória
     zip_buffer = io.BytesIO()
     resumo_lista = []
 
     with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-        for uploaded in uploaded_files:
-            conteudo = uploaded.getvalue().decode("utf-8", errors="ignore")
 
-            # --- Resumo antes da correção ---
+        for uploaded in uploaded_files:
+
+            # 🔥 LER ARQUIVO MANTENDO ANSI (Windows-1252)
+            conteudo = uploaded.getvalue().decode("latin1")
+
+            # Resumo antes da correção
             total_linhas, linhas_nao_vazias = contar_linhas(conteudo)
             linhas_quebradas_antes = verificar_linhas_quebradas_conteudo(conteudo)
 
-            # --- Corrigir ---
+            # Corrigir
             corrigido_texto, merges = corrigir_quebras_conteudo(conteudo)
             linhas_quebradas_depois = verificar_linhas_quebradas_conteudo(corrigido_texto)
 
-            # Adiciona arquivo corrigido ao ZIP
-            zip_file.writestr(f"{uploaded.name[:-4]}_corrigido.txt", corrigido_texto)
+            # 🔥 GERAR ARQUIVO CORRIGIDO EM ANSI
+            zip_file.writestr(
+                f"{uploaded.name[:-4]}_corrigido.txt",
+                corrigido_texto.encode("latin1", errors="ignore")
+            )
 
-            # Adiciona ao resumo
             resumo_lista.append({
                 "Arquivo": uploaded.name,
                 "Linhas totais": total_linhas,
@@ -100,12 +108,12 @@ if st.button("🛠️ Corrigir todos os arquivos e gerar ZIP"):
                 "Linhas quebradas depois": len(linhas_quebradas_depois)
             })
 
-    # Exibir resumo final como tabela
+    # Tabela resumo
     st.subheader("📊 Resumo por arquivo")
     resumo_df = pd.DataFrame(resumo_lista)
     st.dataframe(resumo_df)
 
-    # Botão para download do ZIP
+    # Download ZIP
     zip_buffer.seek(0)
     st.download_button(
         label="⬇ Baixar todos os arquivos corrigidos (ZIP)",
